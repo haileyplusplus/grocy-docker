@@ -1,6 +1,22 @@
-version: '2.4'
-
 services:
+  grocy-sidecar:
+    image: ghcr.io/elliotmatson/tailscale-sidecar-proxy:latest
+    container_name: grocy-sidecar
+    hostname: grocy
+    environment:
+      TAILSCALE_AUTH_KEY: ${TS_AUTHKEY_CONFIG}
+      TAILSCALE_STATE_DIR: "/var/lib/tailscale"
+      TAILSCALE_HOSTNAME: grocy
+      TAILSCALE_SERVE_PORT: 8080
+      TAILSCALE_SERVE_SOURCE_MODE: http
+    volumes:
+      - ${PWD}/tailscale/state:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
 
   frontend:
     image: "grocy/frontend:v4.2.0"
@@ -10,10 +26,10 @@ services:
         PLATFORM: linux/amd64
       context: .
       dockerfile: Containerfile-frontend
+    network_mode: service:grocy-sidecar
     depends_on:
+      - grocy-sidecar
       - backend
-    ports:
-      - '127.0.0.1:8080:8080'
     read_only: true
     tmpfs:
       - /tmp
